@@ -1,14 +1,13 @@
-import time
 import picamera
 import picamera.array
 import numpy as np
-from time import strftime
+from time import strftime, sleep
 import os
 import io
 import csv
 import json
-import subprocess
 from threading import Thread
+import imageio
 
 
 class IRcamera():
@@ -29,7 +28,7 @@ class IRcamera():
 
         self.iso = self.camera.iso
         self.analog_gain = self.camera.analog_gain
-        self.digital_gain = self.camera.digital_gain
+        self.digital_gain = float(self.camera.digital_gain)
 
 
     def enable_AE(self):
@@ -43,8 +42,19 @@ class IRcamera():
         self.camera.exposure_mode = 'auto'
         self.AE = True
 
-    
+    def prime_AE(self):
+        if not self.AE:
+            self.enable_AE()
+
+        if self.exposure_speed == 0
+            self.camera.start_preview()
+            sleep(2)
+            self.camera.stop_preview()
+
     def update_AE(self):
+
+        self.prime_AE()
+
         self.exposure_speed = self.camera.exposure_speed  # Can read AE setting with camera.shutter_speed = 0
         self.framerate = self.camera.framerate
 
@@ -124,10 +134,9 @@ class IRcamera():
         :param bayer_data:
         :return:
         """
-        #print(len(bayer_data[0]))
-        #bayer_data = bayer_data.tolist()
+
         bayer_order = {'red': bayer_data[0].tolist(),
-                       'green1':bayer_data[1].tolist(),
+                       'green1': bayer_data[1].tolist(),
                        'green2': bayer_data[2].tolist(),
                        'blue':bayer_data[3].tolist()}
         def save_bayer():
@@ -135,10 +144,16 @@ class IRcamera():
             
         t = Thread(target=save_bayer)
         t.start()
-        #for i in range(len(bayer_data)):
-         #   save_csv = os.path.join(self.save_dir, self.get_timestamp() + '_{}.csv'.format(bayer_order[i]))
-          #  self.write_csv(save_csv, bayer_data[i])
-            
+
+    def snapshot(self, save=False, im_name=None):
+
+        if not save:
+            stream = io.BytesIO()
+            self.camera.capture(stream, 'jpeg',)
+            stream.close()
+        else:
+            thumbnail = open(im_name, 'wb')
+            self.camera.capture(thumbnail)
 
     def capture_bayer(self, shutter_speed=0, iso=0):
 
@@ -148,22 +163,48 @@ class IRcamera():
             self.set_iso(iso)
             self.set_shutter_speed(shutter_speed)
 
-        self.camera.capture(thumbnail)
+        self.snapshot(save=True, im_name=thumbnail)
 
         stream = io.BytesIO()
         self.camera.capture(stream, 'jpeg', bayer=True)
-        self.csv_bayer(self.get_bayer(stream))
+        bayer_arr = self.get_bayer(stream)
+
         stream.close()
+
+        IR_png = os.path.join(self.save_dir, '{}_IR.png'.format(self.get_timestamp()))
+        blue_png = os.path.join(self.save_dir, '{}_Blue.png'.format(self.get_timestamp()))
+
+        IR_t = Thread(target=self.save_png16, args=(bayer_arr[0], IR_png))
+        blue_t = Thread(target=self.save_png16, args=(bayer_arr[3], blue_png))
+
+        IR_t.start()
+        blue_t.start()
+
+    def save_png16(self, in_arr, out_png):
+        if not out_png.endswith('.png'):
+            out_png += '.png'
+
+        imageio.imsave(out_png, self.convert10to16(in_arr) )
+
     
     @staticmethod
     def savejson(jdict, jout):
         with open(jout, 'w') as jf:
             json.dump(jdict, jf, indent=4)
+
+    @staticmethod
+    def convert10to16(in_arr):
+        print(in_arr.max())
+
+        arr_16 = in_arr * ( 2**16 / 1023. )
+
+        print(arr_16.max())
+
+        return arr_16
         
     @staticmethod
     def make_save_dir():
         save_dir = os.path.expanduser('~/Documents/{}'.format(strftime('%Y%m%d_%H%M%S')))
-
         if not os.path.exists(save_dir):
             os.mkdir(save_dir)
 
