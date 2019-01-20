@@ -46,7 +46,7 @@ class IRcamera():
         if not self.AE:
             self.enable_AE()
 
-        if self.exposure_speed == 0
+        if self.exposure_speed == 0:
             self.camera.start_preview()
             sleep(2)
             self.camera.stop_preview()
@@ -157,13 +157,13 @@ class IRcamera():
 
     def capture_bayer(self, shutter_speed=0, iso=0):
 
-        thumbnail = open(os.path.join(self.save_dir, self.get_timestamp() + '.jpg'), 'wb')
+        
 
         if not self.AE:
             self.set_iso(iso)
             self.set_shutter_speed(shutter_speed)
 
-        self.snapshot(save=True, im_name=thumbnail)
+        #self.snapshot(save=True, im_name=thumbnail)
 
         stream = io.BytesIO()
         self.camera.capture(stream, 'jpeg', bayer=True)
@@ -173,19 +173,39 @@ class IRcamera():
 
         IR_png = os.path.join(self.save_dir, '{}_IR.png'.format(self.get_timestamp()))
         blue_png = os.path.join(self.save_dir, '{}_Blue.png'.format(self.get_timestamp()))
+        
+        IRthumb_png = os.path.join(self.save_dir, '{}_IR_thumb.png'.format(self.get_timestamp()))
+        bluethumb_png = os.path.join(self.save_dir, '{}_Blue_thumb.png'.format(self.get_timestamp()))
 
         IR_t = Thread(target=self.save_png16, args=(bayer_arr[0], IR_png))
         blue_t = Thread(target=self.save_png16, args=(bayer_arr[3], blue_png))
+        
+        IRthumb_t = Thread(target=self.save_corr_png8, args=(bayer_arr[0], IRthumb_png))
+        bluethumb_t = Thread(target=self.save_corr_png8, args=(bayer_arr[3], bluethumb_png))
 
         IR_t.start()
         blue_t.start()
+        
+        IRthumb_t.start()
+        bluethumb_t.start()
 
     def save_png16(self, in_arr, out_png):
         if not out_png.endswith('.png'):
             out_png += '.png'
-
-        imageio.imsave(out_png, self.convert10to16(in_arr) )
-
+             
+        imageio.imsave(out_png, self.convert10to16(in_arr).astype(np.uint16))
+        
+    
+    def save_corr_png8(self, in_arr, out_png):
+        if not out_png.endswith('.png'):
+            out_png += '.png'
+        
+        im_16 = self.convert10to16(in_arr)
+        
+        basic_corr = (im_16 - 4100) ** 2.2
+             
+        imageio.imsave(out_png, in_arr.astype(np.uint8))
+    
     
     @staticmethod
     def savejson(jdict, jout):
@@ -194,11 +214,7 @@ class IRcamera():
 
     @staticmethod
     def convert10to16(in_arr):
-        print(in_arr.max())
-
         arr_16 = in_arr * ( 2**16 / 1023. )
-
-        print(arr_16.max())
 
         return arr_16
         
