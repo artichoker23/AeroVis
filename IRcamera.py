@@ -13,19 +13,20 @@ class IRcamera():
     def __init__(self):
         self.save_dir = self.make_save_dir()
 
-        camera = picamera.Picamera()
-        camera.resolution = (3280, 2464)
-        camera.led = False
+        self.camera = picamera.PiCamera()
+        self.camera.resolution = (3280, 2464)
+        self.camera.led = False
         self.enable_AE()
+        self.AE= True
 
-        self.camera_resolution = camera.resolution
+        self.camera_resolution = self.camera.resolution
         self.shutter_speed = 0
-        self.exposure_speed = camera.exposure_speed  # Can read AE setting with camera.shutter_speed = 0
-        self.framerate = camera.framerate
+        self.exposure_speed = self.camera.exposure_speed  # Can read AE setting with camera.shutter_speed = 0
+        self.framerate = self.camera.framerate
 
-        self.iso = camera.iso
-        self.analog_gain = camera.analog_gain
-        self.digital_gain = camera.digital_gain
+        self.iso = self.camera.iso
+        self.analog_gain = self.camera.analog_gain
+        self.digital_gain = self.camera.digital_gain
 
 
     def enable_AE(self):
@@ -34,9 +35,10 @@ class IRcamera():
 
         :return:
         """
-        camera.shutter_speed = 0  # Sets Picamera to AE mode
-        camera.iso = 0
-        camera.exposure_mode = 'auto'
+        self.camera.shutter_speed = 0  # Sets Picamera to AE mode
+        self.camera.iso = 0
+        self.camera.exposure_mode = 'auto'
+        self.AE = True
 
 
     def get_bayer(self, in_image):
@@ -81,7 +83,7 @@ class IRcamera():
         :param shutter_speed:
         :return:
         """
-        camera.shutter_speed = int((shutter_speed) * 1000000)
+        self.camera.shutter_speed = int((shutter_speed) * 1000000)
         self.shutter_speed = shutter_speed
 
     def set_framerate(self, framerate):
@@ -91,8 +93,8 @@ class IRcamera():
         :return:
         """
 
-        camera.framerate = (1, int(framerate))
-        self.framerate = camera.framerate
+        self.camera.framerate = (1, int(framerate))
+        self.framerate = self.camera.framerate
 
     def set_iso(self, gain):
         """
@@ -101,7 +103,7 @@ class IRcamera():
         :param gain:
         :return:
         """
-        camera.gain(int(gain))
+        self.camera.gain(int(gain))
         self.iso = gain
 
     def csv_bayer(self, bayer_data):
@@ -117,17 +119,18 @@ class IRcamera():
             save_csv = os.path.join(self.save_dir, self.get_timestamp() + '_{}.csv'.format(bayer_order[i]))
             self.write_csv(save_csv, bayer_data[i])
 
-    def capture_bayer(self, shutter_speed, gain):
+    def capture_bayer(self, shutter_speed=0, iso=0):
 
         thumbnail = open(os.path.join(self.save_dir, self.get_timestamp() + '.jpg'), 'wb')
 
-        self.set_iso(gain)
-        self.set_shutter_speed(shutter_speed)
+        if not self.AE:
+            self.set_iso(iso)
+            self.set_shutter_speed(shutter_speed)
 
-        camera.capture(thumbnail)
+        self.camera.capture(thumbnail)
 
         stream = io.BytesIO()
-        camera.capture(stream, 'jpeg', bayer=True)
+        self.camera.capture(stream, 'jpeg', bayer=True)
         self.csv_bayer(self.get_bayer(stream))
         stream.close()
 
@@ -150,20 +153,3 @@ class IRcamera():
     @staticmethod
     def get_timestamp():
         return strftime('%Y%m%d_%H%M%S')
-
-stream = io.BytesIO()
-with picamera.PiCamera() as camera:
-    snap_shot = os.path.join(save_dir, date_time + '_snapshot.jpeg')
-    time.sleep(2)
-    camera.resolution = (3280, 2464)
-    camera.iso = gain
-    camera.shutter_speed = int((shutter_speed) * 1000000)
-
-    time.sleep(1)
-    camera.capture(snap_shot)
-    camera.capture(stream, 'jpeg', bayer=True)
-
-    rgb_bayer = get_bayer(stream)
-
-    csv_bayer(rgb_bayer)
-    stream.close()
