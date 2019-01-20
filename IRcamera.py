@@ -17,6 +17,7 @@ class IRcamera():
         camera.resolution = (3280, 2464)
         camera.led = False
         self.enable_AE()
+        self.AE= True
 
         self.camera_resolution = camera.resolution
         self.shutter_speed = 0
@@ -37,6 +38,7 @@ class IRcamera():
         camera.shutter_speed = 0  # Sets Picamera to AE mode
         camera.iso = 0
         camera.exposure_mode = 'auto'
+        self.AE = True
 
 
     def get_bayer(self, in_image):
@@ -117,12 +119,13 @@ class IRcamera():
             save_csv = os.path.join(self.save_dir, self.get_timestamp() + '_{}.csv'.format(bayer_order[i]))
             self.write_csv(save_csv, bayer_data[i])
 
-    def capture_bayer(self, shutter_speed, gain):
+    def capture_bayer(self, shutter_speed=0, iso=0):
 
         thumbnail = open(os.path.join(self.save_dir, self.get_timestamp() + '.jpg'), 'wb')
 
-        self.set_iso(gain)
-        self.set_shutter_speed(shutter_speed)
+        if not self.AE:
+            self.set_iso(iso)
+            self.set_shutter_speed(shutter_speed)
 
         camera.capture(thumbnail)
 
