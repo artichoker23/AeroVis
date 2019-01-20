@@ -11,7 +11,10 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided
 from time import sleep
 import csv
-from fractions import Fraction 
+from fractions import Fraction
+
+
+
 stream = io.BytesIO()
 with picamera.PiCamera() as camera:
     # Let the camera warm up for a couple of seconds
@@ -91,14 +94,15 @@ camera.resolution= (3280,2464)
 camera.start_preview()
 sleep(2)
 
+camera.iso = 800
 camera.framerate = 2
 camera.shutter_speed = 500000
-camera.exposure_mode = 'off'
+
 camera.iso = 800
 time.sleep(8)
 camera.capture(myfile)
 myfile.close()
-print('jpeg')
+
 red_bayer = open('/home/pi/Desktop/FirstPlant_red.csv', 'w')
 blue_bayer = open('/home/pi/Desktop/FirstPlant_blue.csv', 'w')
 green_bayer = open('/home/pi/Desktop/FirstPlant_green.csv', 'w')
