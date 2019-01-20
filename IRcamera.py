@@ -6,6 +6,9 @@ from time import strftime
 import os
 import io
 import csv
+import json
+import subprocess
+from threading import Thread
 
 
 class IRcamera():
@@ -40,7 +43,15 @@ class IRcamera():
         self.camera.exposure_mode = 'auto'
         self.AE = True
 
+    
+    def update_AE(self):
+        self.exposure_speed = self.camera.exposure_speed  # Can read AE setting with camera.shutter_speed = 0
+        self.framerate = self.camera.framerate
 
+        self.iso = self.camera.iso
+        self.analog_gain = self.camera.analog_gain
+        self.digital_gain = self.camera.digital_gain
+    
     def get_bayer(self, in_image):
         """
         Takes in JPEG snapshot from Picamera with Bayer set to TRUE and parses bayer data from header
@@ -113,11 +124,21 @@ class IRcamera():
         :param bayer_data:
         :return:
         """
-        bayer_order = ['red', 'green1', 'green2', 'blue']
-
-        for i in range(len(bayer_data)):
-            save_csv = os.path.join(self.save_dir, self.get_timestamp() + '_{}.csv'.format(bayer_order[i]))
-            self.write_csv(save_csv, bayer_data[i])
+        #print(len(bayer_data[0]))
+        #bayer_data = bayer_data.tolist()
+        bayer_order = {'red': bayer_data[0].tolist(),
+                       'green1':bayer_data[1].tolist(),
+                       'green2': bayer_data[2].tolist(),
+                       'blue':bayer_data[3].tolist()}
+        def save_bayer():
+            self.savejson(bayer_order, os.path.join(self.save_dir, self.get_timestamp() + '_bayer.json'))
+            
+        t = Thread(target=save_bayer)
+        t.start()
+        #for i in range(len(bayer_data)):
+         #   save_csv = os.path.join(self.save_dir, self.get_timestamp() + '_{}.csv'.format(bayer_order[i]))
+          #  self.write_csv(save_csv, bayer_data[i])
+            
 
     def capture_bayer(self, shutter_speed=0, iso=0):
 
@@ -133,7 +154,12 @@ class IRcamera():
         self.camera.capture(stream, 'jpeg', bayer=True)
         self.csv_bayer(self.get_bayer(stream))
         stream.close()
-
+    
+    @staticmethod
+    def savejson(jdict, jout):
+        with open(jout, 'w') as jf:
+            json.dump(jdict, jf, indent=4)
+        
     @staticmethod
     def make_save_dir():
         save_dir = os.path.expanduser('~/Documents/{}'.format(strftime('%Y%m%d_%H%M%S')))

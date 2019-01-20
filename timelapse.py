@@ -8,15 +8,18 @@ def main():
     IRc = IRcamera()
 
     for i in range(captures):
+        IRc.update_AE()
+        IRc.set_framerate(1)
         print('------- Capturing -------')
         print(' Shutter Speed: {}'.format(IRc.exposure_speed))
+        print(' Framerate: {}'.format(IRc.framerate))
         print(' ISO: {}'.format(IRc.iso))
         print(' Analog Gain: {}'.format(IRc.analog_gain))
         print(' Digital Gain: {}'.format(IRc.digital_gain))
 
-        IRcamera.capture_bayer()
+        IRc.capture_bayer()
 
-        print('----------------------')
+        print('-------------------------\n')
         sleep(interval)
 
 
